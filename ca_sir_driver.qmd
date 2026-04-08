@@ -1,0 +1,129 @@
+
+
+```{python}
+# import libraries
+import pygame
+import numpy as np
+import matplotlib.pyplot as plt
+
+# import functions here....
+from functions.init import init_grid
+from functions.draw import draw
+from functions.update import update_sir
+from functions.mouse import mouse_to_cell
+
+# States
+S = 0
+I = 1
+R = 2
+
+# Colors
+col_S = (50, 100, 255)
+col_I = (255, 50, 50)
+col_R = (50, 255, 50)
+col_grid = (30, 30, 60)
+
+# Params
+beta = 0.05   # infection probability
+gamma = 0.05  # recovery probability
+
+# Begin Program Body
+def main(dimx, dimy, cellsize, S=S, I=I, R=R, beta=beta, gamma=gamma, 
+         col_S=col_S, col_I=col_I, col_R=col_R, col_grid=col_grid):
+    
+    pygame.init()
+    surface = pygame.display.set_mode((dimx * cellsize, dimy * cellsize))
+    pygame.display.set_caption("Agent-Based SIR Model - Press ESC to finish")
+    
+    clock = pygame.time.Clock()
+    grid = init_grid(dimx, dimy)
+    
+    running = False
+    step = False
+    done = False
+    
+    # epidemic history
+    S_hist = []
+    I_hist = []
+    R_hist = []
+    
+    print("Instructions:")
+    print("- Click cells to infect them")
+    print("- Press SPACEBAR to start/pause")
+    print("- Press S to step one frame")
+    print("- Press C to reset grid")
+    print("- Press ESC to finish and see plot")
+    print("- Close the pygame window when done")
+    
+    while not done:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                done = True
+            
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    done = True
+                if event.key == pygame.K_SPACE:
+                    running = not running
+                    print("Running:" if running else "Paused")
+                if event.key == pygame.K_s:
+                    step = True
+                    print("Step forward")
+                if event.key == pygame.K_c:
+                    grid = init_grid(dimx, dimy)
+                    S_hist = []
+                    I_hist = []
+                    R_hist = []
+                    print("Grid reset")
+            
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                row, col = mouse_to_cell(event.pos, cellsize)
+                if event.button == 1:   # left click → infect
+                    if grid[row, col] == S:
+                        grid[row, col] = I
+                        print(f"Infected cell at ({row}, {col})")
+                elif event.button == 3: # right click → recover
+                    grid[row, col] = R
+                    print(f"Recovered cell at ({row}, {col})")
+        
+        surface.fill(col_grid)
+        
+        if running or step:
+            grid = update_sir(grid, beta, gamma, S=S, I=I, R=R)
+            step = False
+            total = grid.size
+            S_hist.append(np.sum(grid == S) / total)
+            I_hist.append(np.sum(grid == I) / total)
+            R_hist.append(np.sum(grid == R) / total)
+        
+        draw(surface, grid, cellsize, S=S, I=I, R=R, 
+             col_S=col_S, col_I=col_I, col_R=col_R)
+        
+        pygame.display.update()
+        clock.tick(20)
+    
+    pygame.quit()
+    pygame.display.quit()
+    
+    # Plot epidemic curves
+    if len(S_hist) > 0:
+        t = range(len(S_hist))
+        plt.figure(figsize=(10, 6))
+        plt.plot(t, S_hist, color=np.array(col_S)/255, label="Susceptible")
+        plt.plot(t, I_hist, color=np.array(col_I)/255, label="Infected")
+        plt.plot(t, R_hist, color=np.array(col_R)/255, label="Recovered")
+        plt.xlabel("Time Step")
+        plt.ylabel("Proportion of Population")
+        plt.title("Agent-Based SIR Dynamics")
+        plt.legend()
+        plt.grid(True, alpha=0.3)
+        plt.show()
+    else:
+        print("No simulation data to plot")
+
+# Run main function
+if __name__ == "__main__":
+    main(100, 70, 8)
+
+
+```
